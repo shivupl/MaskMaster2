@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="description" content="Mask Master clipping mask editor for Adobe Express" />
+        <meta name="keywords" content="Adobe, Express, Add-On, JavaScript, Clipping Mask" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Mask Master</title>
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <div class="panel">
+            <section class="controls">
+                <div class="upload-row">
+                    <label class="upload-button">
+                        Upload Image
+                        <input id="imageInput" type="file" accept="image/*" />
+                    </label>
+                    <label class="upload-button secondary">
+                        Custom Mask
+                        <input id="maskInput" type="file" accept="image/*" />
+                    </label>
+                    <button id="canvasMaskBtn" class="upload-button secondary" type="button" title="Rasterizes the first selected object on the page">
+                        Use canvas selection
+                    </button>
+                </div>
+            </section>
+
+            <section class="canvas-card">
+                <button id="clearImageBtn" class="clear-btn" type="button" aria-label="Clear image" title="Clear image">
+                    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                        <path d="M3 3 L11 11 M11 3 L3 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </button>
+                <canvas id="previewCanvas" aria-label="Mask preview"></canvas>
+                <p id="status" class="status">Upload an image, then drag to position and scroll to zoom.</p>
+            </section>
+
+            <button id="addToPageBtn" class="primary">Add to canvas</button>
+
+            <section class="controls settings-card">
+                <label>
+                    Mask Shape
+                    <select id="shapeSelect">
+                        <option value="ellipse">Ellipse</option>
+                        <option value="rect">Rectangle</option>
+                        <option value="roundRect">Rounded Rect</option>
+                        <option value="custom">Custom Upload</option>
+                    </select>
+                </label>
+
+                <details class="advanced-controls">
+                    <summary>
+                        <span class="summary-label">Advanced settings</span>
+                        <button id="resetBtn" class="reset-pill" type="button">Reset</button>
+                    </summary>
+
+                    <div class="slider-field">
+                        <span class="field-label">Rotate</span>
+                        <div class="slider-row">
+                            <input id="rotation" type="range" min="-180" max="180" value="0" step="1" />
+                            <input id="rotationNum" class="number-box" type="number" min="-180" max="180" value="0" step="1" />
+                        </div>
+                    </div>
+
+                    <div class="slider-field">
+                        <span class="field-label">Mask Size</span>
+                        <div class="slider-row">
+                            <input id="maskSize" type="range" min="20" max="120" value="80" step="1" />
+                            <input id="maskSizeNum" class="number-box" type="number" min="20" max="120" value="80" step="1" />
+                        </div>
+                    </div>
+
+                    <div class="slider-field">
+                        <span class="field-label">Feather</span>
+                        <div class="slider-row">
+                            <input id="feather" type="range" min="0" max="40" value="0" step="1" />
+                            <input id="featherNum" class="number-box" type="number" min="0" max="40" value="0" step="1" />
+                        </div>
+                    </div>
+
+                    <label class="checkbox"><input id="invert" type="checkbox" /> Invert mask</label>
+                </details>
+
+                <p class="hint">Drag the image inside the preview. Scroll or pinch on the preview to zoom. For custom masks, upload a PNG/WebP with transparency or use a canvas selection; opaque pixels reveal the image.</p>
+            </section>
+        </div>
+        <script type="module" src="index.js"></script>
+    </body>
+</html>

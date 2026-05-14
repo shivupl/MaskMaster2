@@ -1,0 +1,23 @@
+{
+    "testId": "bace2f80-955e-4f0d-92f7-573ea9927f49",
+    "name": "Mask Master",
+    "version": "1.0.1",
+    "manifestVersion": 2,
+    "requirements": {
+        "apps": [
+            {
+                "name": "Express",
+                "apiVersion": 1
+            }
+        ],
+        "experimentalApis": true
+    },
+    "entryPoints": [
+        {
+            "type": "panel",
+            "id": "panel1",
+            "main": "index.html",
+            "documentSandbox": "code.js"
+        }
+    ]
+}

@@ -10,20 +10,63 @@
     </head>
     <body>
         <div class="panel">
+            <dialog id="infoDialog" class="info-dialog">
+                <div class="info-dialog-body">
+                    <h2 class="info-dialog-title">How Mask Master works</h2>
+                    <ol class="info-dialog-steps">
+                        <li><strong>Upload an image</strong> — this is what will be clipped by the mask.</li>
+                        <li>
+                            <strong>Select something on your Express page</strong> (a shape, element, text, layer group, etc.)
+                            — that becomes the <em>mask</em>: lighter areas show more of your uploaded image.
+                        </li>
+                        <li>
+                            Tap <strong>Mask</strong> to rasterize the first selected item and load it into the preview.
+                        </li>
+                        <li>Use <strong>Advanced settings</strong> to rotate, scale, feather, or invert the mask.</li>
+                        <li>When it looks right, tap <strong>Add to canvas</strong> to place the result on your design.</li>
+                    </ol>
+                    <button type="button" id="infoDialogClose" class="info-dialog-close">Got it</button>
+                </div>
+            </dialog>
+
             <section class="controls">
-                <div class="upload-row">
+                <div class="upload-row upload-row-with-info">
                     <label class="upload-button">
                         Upload Image
                         <input id="imageInput" type="file" accept="image/*" />
                     </label>
-                    <label class="upload-button secondary">
-                        Custom Mask
-                        <input id="maskInput" type="file" accept="image/*" />
-                    </label>
-                    <button id="canvasMaskBtn" class="upload-button secondary" type="button" title="Rasterizes the first selected object on the page">
-                        Use canvas selection
+                    <button
+                        id="canvasMaskBtn"
+                        class="upload-button secondary"
+                        type="button"
+                        aria-label="Use page selection as mask"
+                        title="Uses the first selected item on your Express page as a PNG mask"
+                    >
+                        Mask
+                    </button>
+                    <button
+                        id="infoBtn"
+                        type="button"
+                        class="info-btn info-btn-inline"
+                        aria-label="How Mask Master works"
+                        title="How Mask Master works"
+                    >
+                        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                            <circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="1.25" />
+                            <circle cx="9" cy="5.75" r="1" fill="currentColor" />
+                            <path
+                                d="M9 8.25v5.25"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.65"
+                                stroke-linecap="round"
+                            />
+                        </svg>
                     </button>
                 </div>
+                <button id="clearCanvasMaskBtn" type="button" class="clear-mask-btn" disabled>
+                    Clear mask
+                </button>
             </section>
 
             <section class="canvas-card">
@@ -33,27 +76,22 @@
                     </svg>
                 </button>
                 <canvas id="previewCanvas" aria-label="Mask preview"></canvas>
-                <p id="status" class="status">Upload an image, then drag to position and scroll to zoom.</p>
+                <p id="status" class="status">Upload an image, select a mask, then drag to position and scroll to zoom.</p>
             </section>
 
             <button id="addToPageBtn" class="primary">Add to canvas</button>
 
             <section class="controls settings-card">
-                <label>
-                    Mask Shape
-                    <select id="shapeSelect">
-                        <option value="ellipse">Ellipse</option>
-                        <option value="rect">Rectangle</option>
-                        <option value="roundRect">Rounded Rect</option>
-                        <option value="custom">Custom Upload</option>
-                    </select>
-                </label>
-
                 <details class="advanced-controls">
                     <summary>
                         <span class="summary-label">Advanced settings</span>
                         <button id="resetBtn" class="reset-pill" type="button">Reset</button>
                     </summary>
+
+                    <div class="checkbox-row">
+                        <label class="checkbox"><input id="showImage" type="checkbox" /> Show image</label>
+                        <label class="checkbox"><input id="invert" type="checkbox" /> Invert mask</label>
+                    </div>
 
                     <div class="slider-field">
                         <span class="field-label">Rotate</span>
@@ -79,10 +117,9 @@
                         </div>
                     </div>
 
-                    <label class="checkbox"><input id="invert" type="checkbox" /> Invert mask</label>
                 </details>
 
-                <p class="hint">Drag the image inside the preview. Scroll or pinch on the preview to zoom. For custom masks, upload a PNG/WebP with transparency or use a canvas selection; opaque pixels reveal the image.</p>
+                <p class="hint">Drag the image in the preview; scroll or pinch to zoom. Use <strong>Mask</strong> to grab the current page selection as the mask. Use Invert if light and dark look reversed.</p>
             </section>
         </div>
         <script type="module" src="index.js"></script>

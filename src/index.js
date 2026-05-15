@@ -10,15 +10,23 @@ const state = {
     rotation: 0,
     offsetX: 0,
     offsetY: 0,
-    shape: "ellipse",
     maskSize: 0.8,
     feather: 0,
     opacity: 1,
     invert: false,
+    showImage: false,
     dragging: false,
     lastPointer: null,
     activePointers: new Map(),
     pinchStart: null,
+};
+
+/** Dimmed full image under the masked layer when “Show image” is on. */
+const OUTSIDE_MASK_DIM_OPACITY = 0.28;
+
+const clearCanvasMask = () => {
+    state.maskImage = null;
+    state.maskName = "";
 };
 
 const initialize = () => {
@@ -155,9 +163,6 @@ const applyCanvasSelectionMask = async (controls, render) => {
         try {
             state.maskImage = await loadImage(url);
             state.maskName = "Canvas selection";
-            state.shape = "custom";
-            controls.shape.value = "custom";
-            controls.maskInput.value = "";
             refreshStatus();
             render();
         } finally {
@@ -172,11 +177,10 @@ const applyCanvasSelectionMask = async (controls, render) => {
 
 const getControls = () => ({
     imageInput: document.getElementById("imageInput"),
-    maskInput: document.getElementById("maskInput"),
     canvasMaskBtn: document.getElementById("canvasMaskBtn"),
+    clearCanvasMaskBtn: document.getElementById("clearCanvasMaskBtn"),
     addToPageBtn: document.getElementById("addToPageBtn"),
     clearImageBtn: document.getElementById("clearImageBtn"),
-    shape: document.getElementById("shapeSelect"),
     rotation: document.getElementById("rotation"),
     rotationNum: document.getElementById("rotationNum"),
     maskSize: document.getElementById("maskSize"),
@@ -184,6 +188,7 @@ const getControls = () => ({
     feather: document.getElementById("feather"),
     featherNum: document.getElementById("featherNum"),
     invert: document.getElementById("invert"),
+    showImage: document.getElementById("showImage"),
     resetBtn: document.getElementById("resetBtn"),
 });
 
@@ -198,13 +203,8 @@ const setupControls = (controls, render) => {
         render();
     });
 
-    controls.maskInput.addEventListener("change", async (event) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        state.maskImage = await loadImage(URL.createObjectURL(file));
-        state.maskName = file.name;
-        state.shape = "custom";
-        controls.shape.value = "custom";
+    controls.clearCanvasMaskBtn?.addEventListener("click", () => {
+        clearCanvasMask();
         refreshStatus();
         render();
     });
@@ -220,16 +220,9 @@ const setupControls = (controls, render) => {
         state.imageName = "";
         resetTransform();
         controls.imageInput.value = "";
+        clearCanvasMask();
         refreshStatus();
         render();
-    });
-    controls.shape.addEventListener("change", () => {
-        update("shape", controls.shape.value, render);
-        if (controls.shape.value === "custom" && !state.maskImage) {
-            setError("Upload a custom mask image to use this option.");
-        } else {
-            refreshStatus();
-        }
     });
     const bindPair = (range, number, parseValue, write) => {
         const sync = (raw) => {
@@ -275,12 +268,25 @@ const setupControls = (controls, render) => {
     );
 
     controls.invert.addEventListener("change", () => update("invert", controls.invert.checked, render));
+    controls.showImage?.addEventListener("change", () => update("showImage", controls.showImage.checked, render));
+
+    const infoDialog = document.getElementById("infoDialog");
+    const infoBtn = document.getElementById("infoBtn");
+    const infoDialogClose = document.getElementById("infoDialogClose");
+    infoBtn?.addEventListener("click", () => infoDialog?.showModal());
+    infoDialogClose?.addEventListener("click", () => infoDialog?.close());
+    infoDialog?.addEventListener("click", (event) => {
+        if (event.target === infoDialog) infoDialog.close();
+    });
+
     controls.resetBtn.addEventListener("click", () => {
         resetTransform();
         state.maskSize = 0.8;
         state.feather = 0;
         state.opacity = 1;
         state.invert = false;
+        state.showImage = false;
+        clearCanvasMask();
         controls.rotation.value = "0";
         controls.rotationNum.value = "0";
         controls.maskSize.value = "80";
@@ -288,6 +294,7 @@ const setupControls = (controls, render) => {
         controls.feather.value = "0";
         controls.featherNum.value = "0";
         controls.invert.checked = false;
+        controls.showImage.checked = false;
         refreshStatus();
         render();
     });
@@ -384,7 +391,7 @@ const resizeCanvas = (canvas, render) => {
     render();
 };
 
-const renderPreview = (canvas, exportScale = 1, showOutline = true) => {
+const renderPreview = (canvas, exportScale = 1) => {
     const ctx = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
@@ -402,6 +409,14 @@ const renderPreview = (canvas, exportScale = 1, showOutline = true) => {
     drawImageLayer(imageLayer.getContext("2d"), width, height, exportScale);
 
     ctx.save();
+    if (state.showImage) {
+        const imageFull = document.createElement("canvas");
+        imageFull.width = width;
+        imageFull.height = height;
+        drawImageLayer(imageFull.getContext("2d"), width, height, exportScale);
+        ctx.globalAlpha = state.opacity * OUTSIDE_MASK_DIM_OPACITY;
+        ctx.drawImage(imageFull, 0, 0);
+    }
     ctx.globalAlpha = state.opacity;
     if (state.invert) {
         const inverted = document.createElement("canvas");
@@ -419,10 +434,6 @@ const renderPreview = (canvas, exportScale = 1, showOutline = true) => {
     imageLayer.getContext("2d").drawImage(mask, 0, 0);
     ctx.drawImage(imageLayer, 0, 0);
     ctx.restore();
-
-    if (showOutline) {
-        drawMaskOutline(ctx, width, height, exportScale);
-    }
 };
 
 const drawImageLayer = (ctx, width, height, exportScale) => {
@@ -445,54 +456,19 @@ const createMaskCanvas = (width, height, exportScale) => {
     const ctx = canvas.getContext("2d");
     ctx.save();
     ctx.filter = state.feather ? `blur(${state.feather * exportScale}px)` : "none";
-    if (state.shape === "custom" && state.maskImage) {
+    if (state.maskImage) {
         drawCustomMask(ctx, width, height);
     } else {
         ctx.fillStyle = "#fff";
-        drawMaskPath(ctx, width, height);
-        ctx.fill();
+        ctx.fillRect(0, 0, width, height);
     }
     ctx.restore();
     return canvas;
 };
 
-const drawMaskOutline = (ctx, width, height, exportScale) => {
-    ctx.save();
-    ctx.strokeStyle = "rgba(124, 92, 255, 0.95)";
-    ctx.lineWidth = 2 * exportScale;
-    ctx.setLineDash([7 * exportScale, 6 * exportScale]);
-    if (state.shape === "custom" && state.maskImage) {
-        drawCustomMaskBounds(ctx, width, height);
-    } else {
-        drawMaskPath(ctx, width, height);
-    }
-    ctx.stroke();
-    ctx.restore();
-};
-
-const drawMaskPath = (ctx, width, height) => {
-    const size = Math.min(width, height) * state.maskSize;
-    const x = width / 2;
-    const y = height / 2;
-    ctx.beginPath();
-    if (state.shape === "rect") {
-        ctx.rect(x - size / 2, y - size / 2, size, size);
-    } else if (state.shape === "roundRect") {
-        ctx.roundRect(x - size / 2, y - size / 2, size, size, size * 0.16);
-    } else {
-        ctx.ellipse(x, y, size / 2, size / 2, 0, 0, Math.PI * 2);
-    }
-};
-
 const drawCustomMask = (ctx, width, height) => {
     const bounds = getCustomMaskBounds(width, height);
     ctx.drawImage(state.maskImage, bounds.x, bounds.y, bounds.width, bounds.height);
-};
-
-const drawCustomMaskBounds = (ctx, width, height) => {
-    const bounds = getCustomMaskBounds(width, height);
-    ctx.beginPath();
-    ctx.roundRect(bounds.x, bounds.y, bounds.width, bounds.height, 10);
 };
 
 const getCustomMaskBounds = (width, height) => {
@@ -529,6 +505,10 @@ const addToPage = async () => {
         setError("Upload an image first.");
         return;
     }
+    if (!state.maskImage) {
+        setError("Capture a mask from the page first (tap Mask).");
+        return;
+    }
 
     const blob = await renderMaskedBlob();
     const documentApi = addOnUISdk?.app?.document;
@@ -546,7 +526,7 @@ const renderMaskedBlob = () => new Promise((resolve) => {
     const canvas = document.createElement("canvas");
     canvas.width = 1600;
     canvas.height = 1600;
-    renderPreview(canvas, canvas.width / document.getElementById("previewCanvas").width, false);
+    renderPreview(canvas, canvas.width / document.getElementById("previewCanvas").width);
     canvas.toBlob(resolve, "image/png");
 });
 
@@ -596,7 +576,11 @@ const setStatus = (message, { isError = false } = {}) => {
 const refreshStatus = () => {
     const addBtn = document.getElementById("addToPageBtn");
     if (addBtn) {
-        addBtn.disabled = !state.image;
+        addBtn.disabled = !state.image || !state.maskImage;
+    }
+    const clearMaskBtn = document.getElementById("clearCanvasMaskBtn");
+    if (clearMaskBtn) {
+        clearMaskBtn.disabled = !state.maskImage;
     }
     const clearBtn = document.getElementById("clearImageBtn");
     if (clearBtn) {
@@ -604,6 +588,10 @@ const refreshStatus = () => {
     }
     if (!state.image) {
         setStatus("Upload an image, then drag to position and scroll to zoom.");
+        return;
+    }
+    if (!state.maskImage) {
+        setStatus("Select something on the page, then tap Mask.");
         return;
     }
     setStatus("");

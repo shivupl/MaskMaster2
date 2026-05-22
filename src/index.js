@@ -24,7 +24,7 @@ const state = {
 /** Dimmed full image under the masked layer when “Show image” is on. */
 const OUTSIDE_MASK_DIM_OPACITY = 0.28;
 
-const clearCanvasMask = () => {
+const clearMask = () => {
     state.maskImage = null;
     state.maskName = "";
 };
@@ -50,135 +50,20 @@ addOnUISdk.ready.then(initialize).catch(initialize);
 // Keeps the panel testable when opened directly from the local dev server.
 window.setTimeout(initialize, 800);
 
-let documentSandboxProxy = null;
-let panelBridgeExposed = false;
-
-const manifestPanelDocumentSandboxPath = () => {
-    const manifest = addOnUISdk.instance?.manifest;
-    const entryPoints = manifest?.entryPoints;
-    if (!Array.isArray(entryPoints)) return null;
-    const panel = entryPoints.find((ep) => ep?.type === "panel");
-    if (!panel) return null;
-    return panel.documentSandbox || panel.script || null;
-};
-
-/**
- * The host sometimes attaches `runtime.apiProxy` shortly after `ready`.
- * Poll briefly so we do not give up while Express is still wiring the document sandbox.
- */
-const waitForPanelRuntimeWithBridge = async (timeoutMs = 6000) => {
-    await addOnUISdk.ready;
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-        const runtime = addOnUISdk.instance?.runtime;
-        if (runtime && typeof runtime.apiProxy === "function") {
-            return runtime;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 100));
+const unsupportedAttachmentMessage = (file) => {
+    const name = file?.name || "This file";
+    const dot = name.lastIndexOf(".");
+    const ext = dot >= 0 ? name.slice(dot + 1).trim() : "";
+    if (ext) {
+        return `${ext.toUpperCase()} is not supported.`;
     }
-    return addOnUISdk.instance?.runtime ?? null;
-};
-
-/**
- * Adobe's iframe ↔ document sandbox sample calls `runtime.exposeApi` on the panel
- * before `runtime.apiProxy("documentSandbox")`.
- */
-const ensureDocumentSandboxProxy = async () => {
-    if (documentSandboxProxy) return documentSandboxProxy;
-
-    const runtime = await waitForPanelRuntimeWithBridge();
-    if (!runtime?.apiProxy) {
-        return null;
-    }
-
-    if (!panelBridgeExposed && typeof runtime.exposeApi === "function") {
-        runtime.exposeApi({
-            panelBridgeReady() {
-                return true;
-            },
-        });
-        panelBridgeExposed = true;
-    }
-
-    const sandboxRuntime =
-        addOnUISdk.constants?.RuntimeType?.documentSandbox ?? "documentSandbox";
-
-    try {
-        documentSandboxProxy = await runtime.apiProxy(sandboxRuntime);
-    } catch (err) {
-        console.warn("Mask Master: document sandbox apiProxy failed", err);
-        documentSandboxProxy = null;
-    }
-
-    return documentSandboxProxy;
-};
-
-const documentSandboxUnavailableMessage = () => {
-    const declared = manifestPanelDocumentSandboxPath();
-    const refresh =
-        "Run `npm run build`, restart `npm run start`, remove this add-on in Express, and add it again from your dev server URL.";
-    if (declared) {
-        return (
-            "Express did not provide document sandbox messaging (runtime.apiProxy). " +
-            "Close the add-on panel completely and reopen it, or remove the add-on and connect again. " +
-            refresh +
-            " If it still fails, try Express on desktop or update the app."
-        );
-    }
-    return (
-        "Could not reach the document sandbox. " +
-        "This build expects documentSandbox in manifest.json. " +
-        refresh +
-        " If you already did, Express may still be using an old manifest — try a new browser profile or clear site data for your dev host."
-    );
-};
-
-const sandboxMaskErrorMessage = (result) => {
-    if (result?.code === "renditionError" && result.message) {
-        return result.message;
-    }
-    const map = {
-        noSelection: "Select something on the canvas, then try again.",
-        noRenditionTarget: "Could not rasterize this selection. Try a shape, image, or group.",
-        noBlob: "No image was returned for the selection.",
-    };
-    return map[result?.code] || "Could not use the canvas selection as a mask.";
-};
-
-const applyCanvasSelectionMask = async (controls, render) => {
-    const api = await ensureDocumentSandboxProxy();
-    if (!api) {
-        setError(documentSandboxUnavailableMessage());
-        return;
-    }
-    const btn = controls.canvasMaskBtn;
-    if (btn) btn.disabled = true;
-    try {
-        const result = await api.getSelectionMaskPng();
-        if (!result?.ok) {
-            setError(sandboxMaskErrorMessage(result));
-            return;
-        }
-        const url = URL.createObjectURL(result.blob);
-        try {
-            state.maskImage = await loadImage(url);
-            state.maskName = "Canvas selection";
-            refreshStatus();
-            render();
-        } finally {
-            URL.revokeObjectURL(url);
-        }
-    } catch (err) {
-        setError(err?.message ? String(err.message) : "Could not capture the selection.");
-    } finally {
-        if (btn) btn.disabled = false;
-    }
+    return `${name} is not supported.`;
 };
 
 const getControls = () => ({
     imageInput: document.getElementById("imageInput"),
-    canvasMaskBtn: document.getElementById("canvasMaskBtn"),
-    clearCanvasMaskBtn: document.getElementById("clearCanvasMaskBtn"),
+    maskInput: document.getElementById("maskInput"),
+    clearMaskBtn: document.getElementById("clearCanvasMaskBtn"),
     addToPageBtn: document.getElementById("addToPageBtn"),
     clearImageBtn: document.getElementById("clearImageBtn"),
     rotation: document.getElementById("rotation"),
@@ -203,14 +88,27 @@ const setupControls = (controls, render) => {
         render();
     });
 
-    controls.clearCanvasMaskBtn?.addEventListener("click", () => {
-        clearCanvasMask();
-        refreshStatus();
-        render();
+    controls.maskInput.addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        try {
+            state.maskImage = await loadImage(url);
+            state.maskName = file.name;
+            refreshStatus();
+            render();
+        } catch {
+            setError("Could not load that mask image.");
+        } finally {
+            URL.revokeObjectURL(url);
+        }
     });
 
-    controls.canvasMaskBtn.addEventListener("click", () => {
-        applyCanvasSelectionMask(controls, render);
+    controls.clearMaskBtn?.addEventListener("click", () => {
+        clearMask();
+        if (controls.maskInput) controls.maskInput.value = "";
+        refreshStatus();
+        render();
     });
 
     controls.addToPageBtn.addEventListener("click", () => addToPage());
@@ -220,7 +118,8 @@ const setupControls = (controls, render) => {
         state.imageName = "";
         resetTransform();
         controls.imageInput.value = "";
-        clearCanvasMask();
+        clearMask();
+        if (controls.maskInput) controls.maskInput.value = "";
         refreshStatus();
         render();
     });
@@ -286,7 +185,8 @@ const setupControls = (controls, render) => {
         state.opacity = 1;
         state.invert = false;
         state.showImage = false;
-        clearCanvasMask();
+        clearMask();
+        if (controls.maskInput) controls.maskInput.value = "";
         controls.rotation.value = "0";
         controls.rotationNum.value = "0";
         controls.maskSize.value = "80";
@@ -506,7 +406,7 @@ const addToPage = async () => {
         return;
     }
     if (!state.maskImage) {
-        setError("Capture a mask from the page first (tap Mask).");
+        setError("Upload a mask image first.");
         return;
     }
 
@@ -591,7 +491,7 @@ const refreshStatus = () => {
         return;
     }
     if (!state.maskImage) {
-        setStatus("Select something on the page, then tap Mask.");
+        setStatus("Upload a mask image (PNG with transparency works best).");
         return;
     }
     setStatus("");

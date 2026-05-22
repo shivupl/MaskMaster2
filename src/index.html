@@ -16,11 +16,8 @@
                     <ol class="info-dialog-steps">
                         <li><strong>Upload an image</strong> — this is what will be clipped by the mask.</li>
                         <li>
-                            <strong>Select something on your Express page</strong> (a shape, element, text, layer group, etc.)
-                            — that becomes the <em>mask</em>: lighter areas show more of your uploaded image.
-                        </li>
-                        <li>
-                            Tap <strong>Mask</strong> to rasterize the first selected item and load it into the preview.
+                            <strong>Upload a mask image</strong> (PNG or similar with transparency)
+                            — transparent areas hide your image; opaque areas show it.
                         </li>
                         <li>Use <strong>Advanced settings</strong> to rotate, scale, feather, or invert the mask.</li>
                         <li>When it looks right, tap <strong>Add to canvas</strong> to place the result on your design.</li>
@@ -35,15 +32,10 @@
                         Upload Image
                         <input id="imageInput" type="file" accept="image/*" />
                     </label>
-                    <button
-                        id="canvasMaskBtn"
-                        class="upload-button secondary"
-                        type="button"
-                        aria-label="Use page selection as mask"
-                        title="Uses the first selected item on your Express page as a PNG mask"
-                    >
-                        Mask
-                    </button>
+                    <label class="upload-button secondary" title="PNG or image with transparency as the mask">
+                        Upload Mask
+                        <input id="maskInput" type="file" accept="image/*" />
+                    </label>
                     <button
                         id="infoBtn"
                         type="button"
@@ -76,7 +68,7 @@
                     </svg>
                 </button>
                 <canvas id="previewCanvas" aria-label="Mask preview"></canvas>
-                <p id="status" class="status">Upload an image, select a mask, then drag to position and scroll to zoom.</p>
+                <p id="status" class="status">Upload an image and a mask, then drag to position and scroll to zoom.</p>
             </section>
 
             <button id="addToPageBtn" class="primary">Add to canvas</button>
@@ -119,7 +111,7 @@
 
                 </details>
 
-                <p class="hint">Drag the image in the preview; scroll or pinch to zoom. Use <strong>Mask</strong> to grab the current page selection as the mask. Use Invert if light and dark look reversed.</p>
+                <p class="hint">Drag the image in the preview; scroll or pinch to zoom/resize the image. Use <strong>Upload Mask</strong> for a PNG with transparency. Use <strong>Invert</strong> to reverse the mask.</p>
             </section>
         </div>
         <script type="module" src="index.js"></script>

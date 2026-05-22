@@ -81,11 +81,19 @@ const setupControls = (controls, render) => {
     controls.imageInput.addEventListener("change", async (event) => {
         const file = event.target.files?.[0];
         if (!file) return;
-        state.image = await loadImage(URL.createObjectURL(file));
-        state.imageName = file.name;
-        resetTransform();
-        refreshStatus();
-        render();
+        const url = URL.createObjectURL(file);
+        try {
+            state.image = await loadImage(url);
+            state.imageName = file.name;
+            resetTransform();
+            refreshStatus();
+            render();
+        } catch {
+            setError(unsupportedAttachmentMessage(file));
+            controls.imageInput.value = "";
+        } finally {
+            URL.revokeObjectURL(url);
+        }
     });
 
     controls.maskInput.addEventListener("change", async (event) => {
@@ -98,7 +106,8 @@ const setupControls = (controls, render) => {
             refreshStatus();
             render();
         } catch {
-            setError("Could not load that mask image.");
+            setError(unsupportedAttachmentMessage(file));
+            controls.maskInput.value = "";
         } finally {
             URL.revokeObjectURL(url);
         }

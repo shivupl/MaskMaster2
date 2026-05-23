@@ -194,8 +194,6 @@ const setupControls = (controls, render) => {
         state.opacity = 1;
         state.invert = false;
         state.showImage = false;
-        clearMask();
-        if (controls.maskInput) controls.maskInput.value = "";
         controls.rotation.value = "0";
         controls.rotationNum.value = "0";
         controls.maskSize.value = "80";
